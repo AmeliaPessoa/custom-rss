@@ -2,8 +2,8 @@ from fastapi import FastAPI, Response
 
 app = FastAPI()
 
-@app.get("/custom-rss")
-def custom_rss():
+@app.get("/custom-rss/{data_source}")
+def custom_rss(data_source: str):
   xml_data = """
     <rss version="2.0">
         <channel>
