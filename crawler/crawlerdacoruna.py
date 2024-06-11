@@ -3,13 +3,13 @@ import json
 import datetime
 from apify_client import ApifyClient
 
-class MyCrawler:
+class CrawlerDaCoruna:
     def __init__(self):
         self.config = self.read_config()
         self.client = ApifyClient(token=self.config['apify']['api_token'])
 
     def read_config(self):
-        config_path = os.path.join(os.getcwd(), 'config', 'crawler.json')
+        config_path = os.path.join(os.getcwd(), 'config', 'dacoruna.json')
         with open(config_path, 'r', encoding='utf-8') as file:
             return json.load(file)
 
@@ -62,5 +62,5 @@ class MyCrawler:
         print('Data inserted into PostgreSQL database.')
 
 if __name__ == "__main__":
-    crawler = MyCrawler()
+    crawler = CrawlerDaCoruna()
     crawler.run_crawler()
