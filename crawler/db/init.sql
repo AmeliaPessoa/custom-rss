@@ -14,8 +14,6 @@ CREATE TABLE media (
     id SERIAL PRIMARY KEY,
     website_article_id INT NOT NULL,
     link TEXT NOT NULL UNIQUE,
-    title VARCHAR(500),
     description TEXT,
     FOREIGN KEY (website_article_id) REFERENCES website_articles(id) ON DELETE CASCADE
 );
-

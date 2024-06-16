@@ -1,21 +1,15 @@
-import os
-import json
 import datetime
 import re
 import requests
 from bs4 import BeautifulSoup
 from apify_client import ApifyClient
 import psycopg2
+from apify import Actor
 
 class CrawlerDaCoruna:
-    def __init__(self):
-        self.config = self.read_config()
+    def __init__(self, config):
+        self.config = config
         self.client = ApifyClient(token=self.config['apify']['api_token'])
-
-    def read_config(self):
-        config_path = os.path.join(os.getcwd(), 'config', 'dacoruna.json')
-        with open(config_path, 'r', encoding='utf-8') as file:
-            return json.load(file)
 
     def extract_title(self, markdown_content):
         match = re.search(r'::(.*?)\[(.*?)\]', markdown_content, re.DOTALL)
@@ -25,18 +19,13 @@ class CrawlerDaCoruna:
         match = re.search(r'::(.*?)\[(.*?)\]', markdown_content, re.DOTALL)
         description = match.group(1).strip() if match else ""
 
-        # Remove the initial "Ficha Nova\n\n" or "Ficha Nova\n\n##" text
         if description.startswith("Ficha Nova\n\n##"):
             description = description[len("Ficha Nova\n\n##"):]
         elif description.startswith("Ficha Nova\n\n"):
             description = description[len("Ficha Nova\n\n"):]
 
-        # Replace any "\n\n" with a single space and "\n" with a single space
-        description = description.replace("\n\n", " ").replace("\n", " ")
-        
-        # Strip any leading or trailing whitespace
+        description = description.replace("\n\n", ". ").replace("\n", ". ")
         description = description.strip()
-
         return description
 
     def extract_date_and_time(self, loaded_time):
@@ -97,10 +86,8 @@ class CrawlerDaCoruna:
                     if footer_image_elem:
                         img_description = footer_image_elem.get_text().strip()
 
-                    # Extract the common part of the image link after the last "_"
                     img_link_common = img_link.rsplit('_', 1)[-1]
 
-                    # Check if the current link is a duplicate of a previous one
                     if img_link_common not in previous_links:
                         images_and_videos.append({
                             "link": img_link,
@@ -110,19 +97,32 @@ class CrawlerDaCoruna:
 
                         previous_links.add(img_link_common)
 
+                # Add logic for videos if needed
+                # for video_tag in content.find_all('video'):
+                #     video_link = video_tag['src']
+                #     video_title = video_tag.get('alt', '')
+                #     video_description = ""  # Add description extraction logic if needed
+                #     images_and_videos.append({
+                #         "link": video_link,
+                #         "title": video_title,
+                #         "description": video_description
+                #     })
+
             return images_and_videos
         return []
 
     def run_crawler(self):
+        Actor.log.info('Starting the crawler...')
         actor_input = {
             'startUrls': self.config['startUrls'],
             'includeUrlGlobs': self.config['includeUrlGlobs'],
+            'excludeUrlGlobs': self.config['excludeUrlGlobs'],
             'requestTimeoutSecs': self.config['requestTimeoutSecs'],
             'maxCrawlPages': self.config['maxCrawlPages']
         }
 
         run = self.client.actor('apify/website-content-crawler').call(run_input=actor_input)
-        print('Crawler run finished.')
+        Actor.log.info('Crawler run finished.')
 
         results = [item for item in self.client.dataset(run['defaultDatasetId']).iterate_items()]
 
@@ -141,7 +141,6 @@ class CrawlerDaCoruna:
             article_link = website_data['link']
             publication_date = self.extract_publication_date(article_link)
 
-            # Skip results with publication date other than the day before
             yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
             if publication_date != yesterday.strftime("%Y-%m-%d"):
                 continue
@@ -151,7 +150,6 @@ class CrawlerDaCoruna:
 
             article = {
                 'link': article_link,
-                'article_title': website_data['title'],
                 'description': website_data['description'],
                 'publication_date': publication_date,
                 'category': category,
@@ -165,20 +163,12 @@ class CrawlerDaCoruna:
 
             processed_results.append(processed_result)
 
-
-        timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-        output_dir = os.path.join(os.getcwd(), 'files')
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-
-        output_file = os.path.join(output_dir, f'results_{timestamp}.json')
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(processed_results, f, ensure_ascii=False, indent=4)
-        print(f'Results saved to {output_file}')
-
+        Actor.log.info(f'Processed {len(processed_results)} results.')
         self.insert_results_to_postgresql(processed_results)
 
+
     def insert_results_to_postgresql(self, results):
+        Actor.log.info('Connecting to PostgreSQL...')
         conn = psycopg2.connect(
             host=self.config['postgres']['host'],
             port=self.config['postgres']['port'],
@@ -187,6 +177,7 @@ class CrawlerDaCoruna:
             database=self.config['postgres']['database']
         )
         cursor = conn.cursor()
+        Actor.log.info('Connected to PostgreSQL.')
 
         for result in results:
             website_data = result['website_data']
@@ -198,8 +189,8 @@ class CrawlerDaCoruna:
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                     RETURNING id
                 )
-                INSERT INTO media (website_article_id, link, title, description)
-                SELECT website_article.id, %s, %s, %s
+                INSERT INTO media (website_article_id, link, description)
+                SELECT website_article.id, %s, %s
                 FROM website_article;
             """, (
                 website_data['link'],
@@ -209,21 +200,18 @@ class CrawlerDaCoruna:
                 article['category'],
                 website_data['crawl']['crawler_execution_date'],
                 website_data['crawl']['crawler_execution_time'],
-                # Media insert values
                 article['images_and_videos'][0]['link'] if article['images_and_videos'] else None,
-                article['images_and_videos'][0]['title'] if article['images_and_videos'] else None,
                 article['images_and_videos'][0]['description'] if article['images_and_videos'] else None
             ))
 
             for media in article['images_and_videos'][1:]:
                 cursor.execute("""
-                    INSERT INTO media (website_article_id, link, title, description)
-                    SELECT id, %s, %s, %s
+                    INSERT INTO media (website_article_id, link, description)
+                    SELECT id, %s, %s
                     FROM website_articles
                     WHERE link = %s;
                 """, (
                     media['link'],
-                    media['title'],
                     media['description'],
                     website_data['link']
                 ))
@@ -231,8 +219,15 @@ class CrawlerDaCoruna:
         conn.commit()
         cursor.close()
         conn.close()
-        print('Data inserted into PostgreSQL database.')
+        Actor.log.info('Data inserted into PostgreSQL database.')
 
-if __name__ == "__main__":
-    crawler = CrawlerDaCoruna()
-    crawler.run_crawler()
+async def main():
+    async with Actor:
+        Actor.log.info('CrawlerDaCoruna started.')
+
+        config = await Actor.get_input()
+        crawler = CrawlerDaCoruna(config)
+        crawler.run_crawler()
+
+        Actor.log.info('CrawlerDaCoruna finished.')
+
