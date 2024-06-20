@@ -29,8 +29,7 @@ class CrawlerDaCoruna:
         return description
 
     def extract_date_and_time(self, loaded_time):
-        loaded_time_parts = loaded_time.split("T")
-        return loaded_time_parts[0], loaded_time_parts[1].replace("Z", "")
+        return datetime.datetime.strptime(loaded_time, "%Y-%m-%dT%H:%M:%S.%fZ")
 
     def extract_publication_date(self, url):
         response = requests.get(url)
@@ -69,6 +68,15 @@ class CrawlerDaCoruna:
             return category
         return ""
 
+    def extract_author(self, url):
+        response = requests.get(url)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, "html.parser")
+            author_elem = soup.find(class_="author_class")  # Ajuste esta linha conforme necessário
+            if author_elem:
+                return author_elem.get_text().strip()
+        return ""
+
     def extract_images_and_videos(self, url):
         response = requests.get(url)
         if response.status_code == 200:
@@ -97,17 +105,6 @@ class CrawlerDaCoruna:
 
                         previous_links.add(img_link_common)
 
-                # Add logic for videos if needed
-                # for video_tag in content.find_all('video'):
-                #     video_link = video_tag['src']
-                #     video_title = video_tag.get('alt', '')
-                #     video_description = ""  # Add description extraction logic if needed
-                #     images_and_videos.append({
-                #         "link": video_link,
-                #         "title": video_title,
-                #         "description": video_description
-                #     })
-
             return images_and_videos
         return []
 
@@ -132,11 +129,8 @@ class CrawlerDaCoruna:
                 'link': result.get('url', ""),
                 'title': self.extract_title(result.get('markdown', "")),
                 'description': self.extract_description(result.get('markdown', "")),
-                'crawl': {}
+                'execution_timestamp': self.extract_date_and_time(result['crawl']['loadedTime'])
             }
-            if 'crawl' in result:
-                loaded_time = result['crawl'].get('loadedTime', "")
-                website_data['crawl']['crawler_execution_date'], website_data['crawl']['crawler_execution_time'] = self.extract_date_and_time(loaded_time)
 
             article_link = website_data['link']
             publication_date = self.extract_publication_date(article_link)
@@ -146,13 +140,16 @@ class CrawlerDaCoruna:
                 continue
 
             category = self.extract_category(article_link)
+            author = self.extract_author(article_link)
             images_and_videos = self.extract_images_and_videos(article_link)
 
             article = {
                 'link': article_link,
-                'description': website_data['description'],
+                'title': website_data['title'],
                 'publication_date': publication_date,
-                'category': category,
+                'author': author,
+                'description': website_data['description'],
+                'categories': category,
                 'images_and_videos': images_and_videos
             }
 
@@ -165,7 +162,6 @@ class CrawlerDaCoruna:
 
         Actor.log.info(f'Processed {len(processed_results)} results.')
         self.insert_results_to_postgresql(processed_results)
-
 
     def insert_results_to_postgresql(self, results):
         Actor.log.info('Connecting to PostgreSQL...')
@@ -184,36 +180,45 @@ class CrawlerDaCoruna:
             article = result['article']
 
             cursor.execute("""
-                WITH website_article AS (
-                    INSERT INTO website_articles (link, title, description, publication_date, category, crawler_execution_date, crawler_execution_time)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                WITH website AS (
+                    INSERT INTO website (link, title, description, execution_timestamp)
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING id
+                ),
+                article_insert AS (
+                    INSERT INTO articles (website_id, link, title, publication_date, author, description, categories)
+                    SELECT id, %s, %s, %s, %s, %s, %s FROM website
                     RETURNING id
                 )
-                INSERT INTO media (website_article_id, link, description)
-                SELECT website_article.id, %s, %s
-                FROM website_article;
+                INSERT INTO media (article_id, link, title, description)
+                SELECT id, %s, %s, %s FROM article_insert;
             """, (
                 website_data['link'],
                 website_data['title'],
                 website_data['description'],
+                website_data['execution_timestamp'],
+                article['link'],
+                article['title'],
                 article['publication_date'],
-                article['category'],
-                website_data['crawl']['crawler_execution_date'],
-                website_data['crawl']['crawler_execution_time'],
+                article['author'],
+                article['description'],
+                article['categories'],
                 article['images_and_videos'][0]['link'] if article['images_and_videos'] else None,
+                article['images_and_videos'][0]['title'] if article['images_and_videos'] else None,
                 article['images_and_videos'][0]['description'] if article['images_and_videos'] else None
             ))
 
             for media in article['images_and_videos'][1:]:
                 cursor.execute("""
-                    INSERT INTO media (website_article_id, link, description)
-                    SELECT id, %s, %s
-                    FROM website_articles
+                    INSERT INTO media (article_id, link, title, description)
+                    SELECT id, %s, %s, %s
+                    FROM articles
                     WHERE link = %s;
                 """, (
                     media['link'],
+                    media['title'],
                     media['description'],
-                    website_data['link']
+                    article['link']
                 ))
 
         conn.commit()
@@ -230,4 +235,3 @@ async def main():
         crawler.run_crawler()
 
         Actor.log.info('CrawlerDaCoruna finished.')
-
