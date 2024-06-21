@@ -1,0 +1,12 @@
+{
+    "actorSpecification": 1,
+    "name": "DaCorunaActor",
+    "title": "DaCorunaActor",
+    "description": "Da Coruña Website Crawler.",
+    "version": "0.0",
+    "buildTag": "latest",
+    "meta": {
+        "templateId": "python-empty"
+    },
+    "dockerfile": "./Dockerfile"
+}
