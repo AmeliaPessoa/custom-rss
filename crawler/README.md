@@ -24,12 +24,12 @@ Log in to your Apify account at [Apify Console](https://console.apify.com/).
 
 ### 3. Create a New Actor
 1. Click on the **Develop new** button in the **Actors** tab.
-2. Click on **View all templates** to select the **Empty Python project** and then choose **Use this template**.
+2. Click on **View all templates** to select **Selenium + Chrome** and then choose **Use this template**.
 3. After the actor is created, click on **Source type: Web IDE** to select the **Zip file** source type.
 
 ![Source type](https://dl.dropboxusercontent.com/scl/fi/nsu0egsjlup09pknxmq8p/image4.png?rlkey=4rxysztdqk4hi8ht9wsfssgpa&st=clnnd0ho&dl=0)
 
-4. Enter the URL of the ZIP file: `https://www.dropbox.com/scl/fi/ow89u0quxbxok86xxh5wo/DaCorunaApifyActor.zip?rlkey=ksox53s6rfgydnt6s645g80k8&st=9t1kf2ue&dl=1`.
+4. Enter the URL of the ZIP file: `https://www.dropbox.com/scl/fi/ftk2hfpr1qp7lxonraeep/source-code.zip?rlkey=3r0y80z8zvblb296w53o5bvnw&st=0tx98t6x&dl=1`.
 5. On the bottom left corner of the actor page, click **Save & build**.
 
 ![Save & build](https://dl.dropboxusercontent.com/scl/fi/690oe8xhvhx6b5hx9hybl/image2.png?rlkey=iltrvw3rbx9ok4kxb3lucagsa&st=3ykcvevg&dl=0)
