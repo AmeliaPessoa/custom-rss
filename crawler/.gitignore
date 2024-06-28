@@ -1,3 +1,26 @@
-# Ignore virtual environment directory and local files saved of the scraping execution
-venv/
-files/
+# This file tells Git which files shouldn't be added to source control
+
+.idea
+.DS_Store
+
+apify_storage
+storage
+
+.venv/
+.env/
+__pypackages__
+dist/
+build/
+*.egg-info/
+*.egg
+
+__pycache__
+
+.mypy_cache
+.dmypy.json
+dmypy.json
+.pytest_cache
+.ruff_cache
+
+.scrapy
+*.log

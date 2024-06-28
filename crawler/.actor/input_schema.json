@@ -1,0 +1,17 @@
+{
+    "title": "Crawler Da Coruna",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "startUrls": {
+            "title": "Start URLs",
+            "type": "array",
+            "description": "URLs to start with",
+            "prefill": [
+                { "url": "https://www.dacoruna.gal/novas?&etiqueta[]=prensa" }
+            ],
+            "editor": "requestListSources"
+        }
+    },
+    "required": ["startUrls"]
+}

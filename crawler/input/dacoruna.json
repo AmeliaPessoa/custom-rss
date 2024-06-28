@@ -32,7 +32,7 @@
   "saveScreenshots": false,
   "startUrls": [
       {
-          "url": "https://www.dacoruna.gal/novas?&etiqueta[]=prensa&ccm_paging_p=1"
+          "url": "https://www.dacoruna.gal/novas?&etiqueta[]=prensa"
       },
       {
           "url": "https://www.dacoruna.gal/novas?&etiqueta[]=prensa&ccm_paging_p=2"
