@@ -8,9 +8,9 @@ services:
     ports:
       - "5433:5432"
     environment:
-      POSTGRES_DB: db
-      POSTGRES_USER: postgres-user
-      POSTGRES_PASSWORD: my-pass
+      POSTGRES_DB: customrss
+      POSTGRES_USER: customrss
+      POSTGRES_PASSWORD: CustomRSS!867d-2c0f87f874a0
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - database:/var/lib/postgresql/data/pgdata
