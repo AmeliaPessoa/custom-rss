@@ -1,5 +1,6 @@
 CREATE TABLE website (
     id SERIAL PRIMARY KEY,
+    name VARCHAR(100) UNIQUE NOT NULL,
     link TEXT NOT NULL,
     title VARCHAR(500) NOT NULL,
     description TEXT,
