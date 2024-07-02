@@ -1,13 +1,13 @@
 
 ---
 
-# How to Create and Schedule an Apify Actor Using a ZIP File
+# How to Create and Schedule an Apify Actor Using a GitHub Repository
 
-This guide will walk you through the steps to create an Apify actor using your code from a ZIP file and schedule it to run daily at 00:30.
+This guide will walk you through the steps to create an Apify actor using your code from a GitHub repository and schedule it to run daily at 00:30.
 
 ## Prerequisites
 - An Apify account.
-- The URL of the actor project code compressed into a ZIP file.
+- The link of the GitHub repository containing the actor project code.
 
 ## Step-by-Step Instructions
 
@@ -24,15 +24,17 @@ Log in to your Apify account at [Apify Console](https://console.apify.com/).
 
 ### 3. Create a New Actor
 1. Click on the **Develop new** button in the **Actors** tab.
-2. Click on **View all templates** to select **Selenium + Chrome** and then choose **Use this template**.
-3. After the actor is created, click on **Source type: Web IDE** to select the **Zip file** source type.
+2. On **From existing source code** select **Link Git Repository** and then choose **GitHub**.
+3. Sign in to your GitHub account.
+4. Link the GitHub repository with your code.
 
-![Source type](https://dl.dropboxusercontent.com/scl/fi/nsu0egsjlup09pknxmq8p/image4.png?rlkey=4rxysztdqk4hi8ht9wsfssgpa&st=clnnd0ho&dl=0)
+![Pick a repository from GitHub](https://www.dropbox.com/scl/fi/7z556c2fvprjwfnm03hhe/link-repository.png?rlkey=nb614djrywki5396zj6r5dwp2&st=0k4pjrjv&dl=0)
 
-4. Enter the URL of the ZIP file: `https://www.dropbox.com/scl/fi/ftk2hfpr1qp7lxonraeep/source-code.zip?rlkey=3r0y80z8zvblb296w53o5bvnw&st=0tx98t6x&dl=1`.
-5. On the bottom left corner of the actor page, click **Save & build**.
+5. Enter the folder of your crawler on main branch: 
 
-![Save & build](https://dl.dropboxusercontent.com/scl/fi/690oe8xhvhx6b5hx9hybl/image2.png?rlkey=iltrvw3rbx9ok4kxb3lucagsa&st=3ykcvevg&dl=0)
+![Choose folder](https://www.dropbox.com/scl/fi/1ggskgi3fee7cvsths9pl/branch-folder.png?rlkey=h3zeiwsq1xz0nuhxwoch4m76a&st=agu6k8z5&dl=0)
+
+6. On the bottom left corner of the actor page, click **Save & build**.
 
 ### 4. Schedule Your Actor
 1. Navigate to the **Schedules** tab in the left-hand menu.
@@ -50,17 +52,7 @@ Log in to your Apify account at [Apify Console](https://console.apify.com/).
 
 ![Select Actor](https://dl.dropboxusercontent.com/scl/fi/iccqpwmknh5af4h0n8il5/image3.png?rlkey=twhmsm3j304uin5nkz97iha52&st=w2v8z5i7&dl=0)
 
-- **Input**: Enter the content of your `dacoruna.json` from the input folder in the ZIP file.
-  - Replace `"your_apify_api_token"` with the token you obtained in Step 2.
-  ```json
-  "apify": {
-      "api_token": "your_apify_api_token"
-  }
-  ```
-
-Here's an example:
-
-![Input Example](https://dl.dropboxusercontent.com/scl/fi/5aritb9xg9ajv2ok7gplc/image1.png?rlkey=ejpg70csj652irsmd7jpxfzb6&st=efrvoxnk&dl=0)
+- **Input**: Choose JSON input, enter the content of your file `dacoruna.json` from the input folder in the repository.
 
 - **Enable**: Save the input and make sure to click on **Save & Enable** on the schedule.
 
