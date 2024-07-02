@@ -20,23 +20,19 @@ class CrawlerDaCoruna:
         return webdriver.Chrome(options=chrome_options)
 
     def extract_title_and_description(self):
-        response = requests.get(self.config['startUrls'][0]['url'])
+        response = requests.get(self.config['base_url'])
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, "html.parser")
-            title = soup.title.string
-            description = soup.find("meta", attrs={"name": "description"})["content"]
+            title = soup.select_one(self.config['selectors']['website_title']).text.strip()
+            description = soup.select_one(self.config['selectors']['website_description'])["content"]
             return title, description
         return None, None
 
     def extract_date_and_time(self, loaded_time):
-        return datetime.datetime.strptime(loaded_time, "%Y-%m-%dT%H:%M:%S")
+        return datetime.datetime.strptime(loaded_time, self.config['datetime_format'])
 
     def transform_publication_date(self, date_str, include_year=True):
-        months = {
-            "xaneiro": "01", "febreiro": "02", "marzo": "03", "abril": "04",
-            "maio": "05", "xuño": "06", "xullo": "07", "agosto": "08",
-            "setembro": "09", "outubro": "10", "novembro": "11", "decembro": "12"
-        }
+        months = self.config['months']
         if include_year:
             match = re.search(r"(\d{2}) de (.*?) de (\d{4})", date_str)
             if match:
@@ -62,18 +58,18 @@ class CrawlerDaCoruna:
             if response.status_code != 200:
                 break
             soup = BeautifulSoup(response.text, "html.parser")
-            article_elements = soup.select(".c-new--item.u-flex")
+            article_elements = soup.select(self.config['selectors']['article_list'])
 
             for article_elem in article_elements:
                 try:
-                    date_elem = article_elem.select_one(".c-new--item__date").text.strip()
+                    date_elem = article_elem.select_one(self.config['selectors']['article_date']).text.strip()
                     publication_date = self.transform_publication_date(date_elem, include_year=False)
 
                     if publication_date < yesterday:
                         return articles
 
                     if publication_date == yesterday:
-                        article_link = article_elem.find("a")["href"]
+                        article_link = article_elem.select_one(self.config['selectors']['article_link'])["href"]
                         articles.append(self.extract_article_details(article_link))
                 except Exception as e:
                     Actor.log.exception(f"Error processing article element: {e}")
@@ -81,15 +77,16 @@ class CrawlerDaCoruna:
             page_number += 1
 
     def extract_article_details(self, url):
-        full_url = self.config['apify']['base_url'] + url
+        full_url = self.config['base_url'] + url
         response = requests.get(full_url)
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, "html.parser")
-            title = soup.select_one(".c-article__detail_title").text.strip()
-            publication_date_elem = soup.select_one(".c-article__detail_date")
+            title = soup.select_one(self.config['selectors']['article_title']).text.strip()
+            publication_date_elem = soup.select_one(self.config['selectors']['article_publication_date'])
             publication_date = publication_date_elem["datetime"] if publication_date_elem else None
-            description = soup.select_one(".c-article__detail_summary").text.strip()
-            categories = ", ".join([cat.text for cat in soup.select(".c-article__left span a")])
+            description = soup.select_one(self.config['selectors']['article_description']).text.strip()
+            categories = ", ".join([cat.text for cat in soup.select(self.config['selectors']['article_categories'])]) or "Da Coruna"
+            author = soup.select_one(self.config['selectors']['article_author']).text.strip() if soup.select_one(self.config['selectors']['article_author']) else "Da Coruna"
             images_and_videos = self.extract_images_and_videos(full_url)
             inserted_at = datetime.datetime.now()
 
@@ -97,7 +94,7 @@ class CrawlerDaCoruna:
                 'link': full_url,
                 'title': title,
                 'publication_date': publication_date,
-                'author': None,
+                'author': author,
                 'description': description,
                 'categories': categories,
                 'images_and_videos': images_and_videos,
@@ -109,16 +106,16 @@ class CrawlerDaCoruna:
         response = requests.get(url)
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, "html.parser")
-            content = soup.find(class_=self.config['apify']['image_container_class'])
+            content = soup.select_one(self.config['selectors']['image_container'])
             images_and_videos = []
 
             if content:
                 previous_links = set()
-                for img_tag in content.find_all('img'):
-                    img_link = self.config['apify']['base_url'] + img_tag['src']
+                for img_tag in content.select('img'):
+                    img_link = self.config['base_url'] + img_tag['src']
                     img_title = img_tag.get('alt', '')
                     img_description = ""
-                    footer_image_elem = content.find(class_=self.config['apify']['image_footer_class'])
+                    footer_image_elem = content.select_one(self.config['selectors']['image_footer'])
                     if footer_image_elem:
                         img_description = footer_image_elem.get_text().strip()
 
@@ -142,24 +139,61 @@ class CrawlerDaCoruna:
         inserted_at = datetime.datetime.now()
 
         website_data = {
+            'name': 'dacoruna',
             'link': self.config['startUrls'][0]['url'],
             'title': title,
             'description': description,
             'inserted_at': inserted_at
         }
 
+        website_id = self.get_or_create_website(website_data)
         articles = self.extract_articles()
 
         processed_results = [{
             'website_data': website_data,
-            'article': article
+            'article': {**article, 'website_id': website_id}
         } for article in articles]
 
         Actor.log.info(f'Processed {len(processed_results)} results.')
         self.insert_results_to_postgresql(processed_results)
 
+    def get_or_create_website(self, website_data):
+        Actor.log.info('Connecting to PostgreSQL to check website...')
+        conn = psycopg2.connect(
+            host=self.config['postgres']['host'],
+            port=self.config['postgres']['port'],
+            user=self.config['postgres']['user'],
+            password=self.config['postgres']['password'],
+            database=self.config['postgres']['database']
+        )
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM website WHERE name = %s", (website_data['name'],))
+        result = cursor.fetchone()
+        if result:
+            website_id = result[0]
+            Actor.log.info('Website already exists, using existing ID.')
+        else:
+            cursor.execute("""
+                INSERT INTO website (name, link, title, description, inserted_at)
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING id;
+            """, (
+                website_data['name'],
+                website_data['link'],
+                website_data['title'],
+                website_data['description'],
+                website_data['inserted_at']
+            ))
+            website_id = cursor.fetchone()[0]
+            conn.commit()
+            Actor.log.info('New website inserted.')
+
+        cursor.close()
+        conn.close()
+        return website_id
+
     def insert_results_to_postgresql(self, results):
-        Actor.log.info('Connecting to PostgreSQL...')
+        Actor.log.info('Connecting to PostgreSQL to insert articles...')
         conn = psycopg2.connect(
             host=self.config['postgres']['host'],
             port=self.config['postgres']['port'],
@@ -169,20 +203,6 @@ class CrawlerDaCoruna:
         )
         cursor = conn.cursor()
         Actor.log.info('Connected to PostgreSQL.')
-
-        website_data = results[0]['website_data']
-        cursor.execute("""
-            INSERT INTO website (link, title, description, inserted_at)
-            VALUES (%s, %s, %s, %s)
-            RETURNING id;
-        """, (
-            website_data['link'],
-            website_data['title'],
-            website_data['description'],
-            website_data['inserted_at']
-        ))
-
-        website_id = cursor.fetchone()[0]
 
         for result in results:
             article = result['article']
@@ -195,7 +215,7 @@ class CrawlerDaCoruna:
                 INSERT INTO media (article_id, link, title, description)
                 SELECT id, %s, %s, %s FROM article_insert;
             """, (
-                website_id,
+                article['website_id'],
                 article['link'],
                 article['title'],
                 article['publication_date'],

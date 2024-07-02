@@ -1,0 +1,55 @@
+{
+    "base_url": "https://www.dacoruna.gal",
+    "datetime_format": "%Y-%m-%dT%H:%M:%S",
+    "months": {
+      "xaneiro": "01",
+      "febreiro": "02",
+      "marzo": "03",
+      "abril": "04",
+      "maio": "05",
+      "xuño": "06",
+      "xullo": "07",
+      "agosto": "08",
+      "setembro": "09",
+      "outubro": "10",
+      "novembro": "11",
+      "decembro": "12"
+    },
+    "selectors": {
+      "website_title": "title",
+      "website_description": "meta[name='description']",
+      "article_list": ".c-new--item.u-flex",
+      "article_date": ".c-new--item__date",
+      "article_link": "a",
+      "article_title": ".c-article__detail_title",
+      "article_publication_date": ".c-article__detail_date",
+      "article_description": ".c-article__detail_summary",
+      "article_categories": ".c-article__left span a",
+      "article_author": ".c-article__detail_author",
+      "image_container": ".c-article__detail_content",
+      "image_footer": ".c-article__detail_footer-image"
+    },
+    "startUrls": [
+      {
+        "url": "https://www.dacoruna.gal/novas?&etiqueta[]=prensa"
+      },
+      {
+        "url": "https://www.dacoruna.gal/novas?&etiqueta[]=prensa&ccm_paging_p=2"
+      },
+      {
+        "url": "https://www.dacoruna.gal/novas?&etiqueta[]=prensa&ccm_paging_p=3"
+      },
+      {
+        "url": "https://www.dacoruna.gal/novas?&etiqueta[]=prensa&ccm_paging_p=4"
+      }
+    ],
+    "postgres": {
+      "host": "erp.artbiz.solutions",
+      "port": "5432",
+      "database": "crawlers",
+      "user": "crawlers",
+      "password": "crawlers",
+      "table": ""
+    }
+  }
+  
